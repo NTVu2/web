@@ -159,7 +159,7 @@ $username = isset($_SESSION['username']) ? $_SESSION['username'] : '';
                 // Chuyển hướng tới allsp.php với tham số category
                 echo "
                 <div class='category-item'>
-                    <a href='all2.php?category=$Maloaihang'>
+                    <a href='sanpham1.php?category=$Maloaihang'>
                         <img src='../img/danh_mục/$anh' alt='$Tenloaihang'>
                         <p>$Tenloaihang</p>
                     </a>
@@ -235,7 +235,7 @@ $username = isset($_SESSION['username']) ? $_SESSION['username'] : '';
                         $outOfStockImage = 'img/sold_out.png';
 
                         echo "
-                        <a href='sp1.php?id=$Mahang'>
+                        <a href='sanpham.php?id=$Mahang'>
                             <div class='bg-card text-card-foreground p-4 rounded-lg shadow-md relative'>
                                 <img src='../img/sản_phẩm/$anh' alt='$Tenhang' class='w-full h-81 object-cover rounded-lg mb-4' />
                                 ";

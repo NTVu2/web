@@ -1,21 +1,17 @@
 <?php
 session_start();
 $loggedIn = isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'];
-$quyen = isset($_SESSION['quyen']) ? $_SESSION['quyen'] : [];  // Lấy quyền từ session, mặc định là mảng trống nếu không có
+$quyen = isset($_SESSION['quyen']) ? $_SESSION['quyen'] : [];
 if (!in_array('donhang', $quyen)) {
     echo "Bạn không có quyền truy cập trang này.";
-    header("Location: loginADMIN.php");
+    header("Location: loginAdmin.php");
     exit;
 }
-include '../db_connect.php'; // Kết nối database
+include '../db_connect.php';
 
-// Xử lý yêu cầu POST để cập nhật trạng thái hoặc xóa hóa đơn
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Kiểm tra nếu có yêu cầu xóa hóa đơn
     if (isset($_POST['SohieuHD_xoa'])) {
         $SohieuHD_xoa = $_POST['SohieuHD_xoa'];
-
-        // Xóa bản ghi trong bảng hoadon, giữ lại chitiethd
         $sqlDeleteHD = "DELETE FROM hoadon WHERE SohieuHD = ?";
         $stmtHD = $con->prepare($sqlDeleteHD);
         $stmtHD->bind_param("s", $SohieuHD_xoa);
@@ -25,41 +21,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         } else {
             $_SESSION['message'] = "Lỗi khi xóa hóa đơn: " . $con->error;
         }
-
-        // Chuyển hướng về trang quản lý đơn hàng sau khi xóa
         header("Location: quanlydonhang.php");
         exit();
     }
 
-    // Xử lý cập nhật trạng thái đơn hàng
     $SohieuHD = $_POST['SohieuHD'];
     $Trangthai = $_POST['Trangthai'];
 
-     // Kiểm tra trạng thái và cập nhật ngày giao hàng dự kiến
-     if ($Trangthai == "1-2 ngày") {
+    // Tính toán ngày giao hàng dự kiến
+    if (in_array($Trangthai, ["1-2 ngày", "3-4 ngày", "5-6 ngày", "7-8 ngày"])) {
+        $days = intval(explode('-', $Trangthai)[0]);
         $currentDate = new DateTime();
-        $currentDate->modify('+2 day');
-        $ngayGiaoDuKien = $currentDate->format('d-m-Y');
-        $Trangthai = "Ngày giao hàng dự kiến: " . $ngayGiaoDuKien;
-    } elseif ($Trangthai == "3-4 ngày") {
-        $currentDate = new DateTime();
-        $currentDate->modify('+4 day');
-        $ngayGiaoDuKien = $currentDate->format('d-m-Y');
-        $Trangthai = "Ngày giao hàng dự kiến: " . $ngayGiaoDuKien;
-    } elseif ($Trangthai == "5-6 ngày") {
-        $currentDate = new DateTime();
-        $currentDate->modify('+6 day');
-        $ngayGiaoDuKien = $currentDate->format('d-m-Y');
-        $Trangthai = "Ngày giao hàng dự kiến: " . $ngayGiaoDuKien;
-    } elseif ($Trangthai == "7-8 ngày") {
-        $currentDate = new DateTime();
-        $currentDate->modify('+8 day');
+        $currentDate->modify("+$days day");
         $ngayGiaoDuKien = $currentDate->format('d-m-Y');
         $Trangthai = "Ngày giao hàng dự kiến: " . $ngayGiaoDuKien;
     }
-    
 
-    // Cập nhật trạng thái đơn hàng
     $sql = "UPDATE hoadon SET Trangthai = ? WHERE SohieuHD = ?";
     $stmt = $con->prepare($sql);
     $stmt->bind_param("ss", $Trangthai, $SohieuHD);
@@ -67,8 +44,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if ($stmt->execute()) {
         $_SESSION['message'] = "Trạng thái đơn hàng đã được cập nhật.";
 
-        // Kiểm tra nếu trạng thái là 'Giao hàng thành công' và cập nhật số lượng tồn kho
+        // Kiểm tra nếu trạng thái là 'Giao hàng thành công'
         if ($Trangthai == "Giao hàng thành công") {
+            // Xóa hóa đơn sau khi giao hàng thành công
+            $sqlDeleteHD = "DELETE FROM hoadon WHERE SohieuHD = ?";
+            $stmtDeleteHD = $con->prepare($sqlDeleteHD);
+            $stmtDeleteHD->bind_param("s", $SohieuHD);
+            if ($stmtDeleteHD->execute()) {
+                $_SESSION['message'] = "Hóa đơn đã được xóa thành công sau khi giao hàng.";
+            } else {
+                $_SESSION['message'] = "Lỗi khi xóa hóa đơn: " . $con->error;
+            }
+            $stmtDeleteHD->close();
+        } else {
+            // Cập nhật số lượng tồn kho
             $sqlDetails = "SELECT Mahang, Soluong FROM chitiethd WHERE SohieuHD = ?";
             $stmtDetails = $con->prepare($sqlDetails);
             $stmtDetails->bind_param("s", $SohieuHD);
@@ -78,8 +67,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             while ($row = $resultDetails->fetch_assoc()) {
                 $Mahang = $row['Mahang'];
                 $SoluongBan = $row['Soluong'];
-
-                // Trừ số lượng bán vào số lượng tồn
                 $updateHang = "UPDATE hang SET Soluongton = Soluongton - ? WHERE Mahang = ?";
                 $stmtUpdate = $con->prepare($updateHang);
                 $stmtUpdate->bind_param("is", $SoluongBan, $Mahang);
@@ -94,25 +81,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $stmt->close();
 }
 
-// Truy vấn để lấy danh sách đơn hàng cùng với số điện thoại
+// Truy vấn danh sách đơn hàng
 $sql = "SELECT hd.SohieuHD, k.Tenkhach, k.Dienthoai, hd.NgayBH, hd.Tongtien, hd.Trangthai 
         FROM hoadon hd
         JOIN khach k ON hd.id = k.id
-        ORDER BY hd.NgayBH DESC";  // Sắp xếp theo NgàyBH giảm dần
-        
+        ORDER BY hd.NgayBH DESC";
 $result = $con->query($sql);
 
-
-// Xử lý tìm kiếm hóa đơn nếu có yêu cầu GET
+// Xử lý tìm kiếm
 if (isset($_GET['search'])) {
-    $searchTerm =  $_GET['search'] ; // Thêm ký tự % để tìm kiếm tương tự
+    $searchTerm =  $_GET['search'];
     $sql = "SELECT hd.SohieuHD, k.Tenkhach, k.Dienthoai, hd.NgayBH, hd.Tongtien, hd.Trangthai 
             FROM hoadon hd
             JOIN khach k ON hd.id = k.id
             WHERE hd.SohieuHD LIKE ? 
             OR k.Tenkhach LIKE ? 
             OR k.Dienthoai LIKE ? 
-            OR hd.Trangthai LIKE ?"; // Thêm điều kiện tìm kiếm theo trạng thái
+            OR hd.Trangthai LIKE ?";
     $stmtSearch = $con->prepare($sql);
     $stmtSearch->bind_param("ssss", $searchTerm, $searchTerm, $searchTerm, $searchTerm);
     $stmtSearch->execute();
@@ -148,7 +133,7 @@ if (isset($_GET['search'])) {
                 
                 <li><a href="logout.php"><i class="fa fa-user"></i> <?php echo $_SESSION['admin_username'];; ?></a></li>
             <?php else: ?>
-                <li><a href="loginADMIN.php" class="dangnhap">Đăng Nhập</a></li>
+                <li><a href="loginAdmin.php" class="dangnhap">Đăng Nhập</a></li>
             <?php endif; ?>
         </ul>
     </div>
@@ -159,18 +144,18 @@ if (isset($_GET['search'])) {
     <a href="trangchuadmin.php" class="tab-button"><i class="fa fa-home"></i> Trang chủ</a>   
         <!-- Sử dụng in_array để kiểm tra quyền trong mảng -->
         <?php if (in_array('sanpham', $_SESSION['quyen'])): ?>
-            <a href="Nhập_SP.php" class="tab-button" ><i class="fa fa-product-hunt"></i> Sản phẩm</a>
+            <a href="Nhap_SP.php" class="tab-button" ><i class="fa fa-product-hunt"></i> Sản phẩm</a>
         <?php endif; ?>
         <?php if (in_array('danhmuc', $_SESSION['quyen'])): ?>
-            <a href="Nhập_DM.php" class="tab-button"><i class="fa fa-list"></i> Danh mục</a>
+            <a href="Nhap_DM.php" class="tab-button"><i class="fa fa-list"></i> Danh mục</a>
         <?php endif; ?>
 
         <?php if (in_array('banner', $_SESSION['quyen'])): ?>
-            <a href="Nhập_Banner.php" class="tab-button"><i class="fa fa-image"></i> Banner</a>
+            <a href="Nhap_Banner.php" class="tab-button"><i class="fa fa-image"></i> Banner</a>
         <?php endif; ?>
 
         <?php if (in_array('taikhoan', $_SESSION['quyen'])): ?>
-            <a href="qltaikhaon.php" class="tab-button"><i class="fa fa-user"></i> Tài khoản</a>
+            <a href="qltaikhoan.php" class="tab-button"><i class="fa fa-user"></i> Tài khoản</a>
         <?php endif; ?>
 
         <?php if (in_array('donhang', $_SESSION['quyen'])): ?>

@@ -4,7 +4,7 @@ $loggedIn = isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'];
 $quyen = isset($_SESSION['quyen']) ? $_SESSION['quyen'] : [];  // Lấy quyền từ session, mặc định là mảng trống nếu không có
 if (!in_array('hoadon', $quyen)) {
     echo "Bạn không có quyền truy cập trang này.";
-    header("Location: loginADMIN.php");
+    header("Location: loginAdmin.php");
     exit;
 }
 include '../db_connect.php';
@@ -57,7 +57,7 @@ if (isset($_GET['search'])) {
                 
                 <li><a href="logout.php"><i class="fa fa-user"></i> <?php echo $_SESSION['admin_username'];; ?></a></li>
             <?php else: ?>
-                <li><a href="loginADMIN.php" class="dangnhap">Đăng Nhập</a></li>
+                <li><a href="loginAdmin.php" class="dangnhap">Đăng Nhập</a></li>
             <?php endif; ?>
         </ul>
     </div>
@@ -68,18 +68,18 @@ if (isset($_GET['search'])) {
     <a href="trangchuadmin.php" class="tab-button"><i class="fa fa-home"></i> Trang chủ</a>   
         <!-- Sử dụng in_array để kiểm tra quyền trong mảng -->
         <?php if (in_array('sanpham', $_SESSION['quyen'])): ?>
-            <a href="Nhập_SP.php" class="tab-button" ><i class="fa fa-product-hunt"></i> Sản phẩm</a>
+            <a href="Nhap_SP.php" class="tab-button" ><i class="fa fa-product-hunt"></i> Sản phẩm</a>
         <?php endif; ?>
         <?php if (in_array('danhmuc', $_SESSION['quyen'])): ?>
-            <a href="Nhập_DM.php" class="tab-button"><i class="fa fa-list"></i> Danh mục</a>
+            <a href="Nhap_DM.php" class="tab-button"><i class="fa fa-list"></i> Danh mục</a>
         <?php endif; ?>
 
         <?php if (in_array('banner', $_SESSION['quyen'])): ?>
-            <a href="Nhập_Banner.php" class="tab-button"><i class="fa fa-image"></i> Banner</a>
+            <a href="Nhap_Banner.php" class="tab-button"><i class="fa fa-image"></i> Banner</a>
         <?php endif; ?>
 
         <?php if (in_array('taikhoan', $_SESSION['quyen'])): ?>
-            <a href="qltaikhaon.php" class="tab-button"><i class="fa fa-user"></i> Tài khoản</a>
+            <a href="qltaikhoan.php" class="tab-button"><i class="fa fa-user"></i> Tài khoản</a>
         <?php endif; ?>
 
         <?php if (in_array('donhang', $_SESSION['quyen'])): ?>
