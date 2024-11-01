@@ -36,4 +36,5 @@ echo json_encode($products);
 
 // Đóng kết nối
 mysqli_close($con);
+
 ?>
